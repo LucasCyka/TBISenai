@@ -4,7 +4,10 @@ import time
 class app:
 
     commands = {
-        '4.1':0x02
+        '4.1':0x02,
+        '4.2':0x03,
+        '4.3':0x0A,
+        '4.5':0x04
     }
 
 
@@ -54,8 +57,8 @@ class app:
     def configSerial(self):
         self.ser.port      = self.port
         self.ser.baudrate  = self.baud
-        self.ser.timetout  = 1
-        self.write_timeout = 1
+        self.ser.timetout  = 1.0
+        self.write_timeout = 1.0
         connected = True
  
         try :
@@ -96,8 +99,87 @@ class app:
             success = False
 
 
-        if success: print("Comando enviado com sucesso.")
-        else: print("Erro ao enviar comando.")
+        if success: 
+            print("Comando postado")
+            self.ser.write_timeout = 1.0
+            self.ser.timeout       = 1.0
+            results = []
+            results.append(self.ser.readline())
+
+            if len(results[0]) == 0:
+                print("nenhuma resposta...")
+                print("Voltando ao menu principal...")
+                success = False
+            else:
+                #different commands, different responses
+                if self.commands[usrcmd] == 0x04: #comuta led
+
+                    results.append(self.ser.readline())
+                    results.append(self.ser.readline())
+                    results.append(self.ser.readline())
+                        
+                    if int(results[0].decode('utf-8',errors = 'ignore').strip()) == 1 and int(results[3].decode('utf-8',errors = 'ignore').strip()) == 170:
+                        #valid message
+                        if int(results[1].decode('utf-8',errors = 'ignore').strip()) == 11:
+                            #finished command
+                            print("Comando executado com sucesso")
+                        else:
+                            sucess = False
+                            print("Sem confirmação de execução do comando")
+                    else:
+                            sucess = False
+                            print("Mensagem enviada de maneira incorreta")
+                if self.commands[usrcmd] == 0x0A: #recebe valor dos sensores
+
+                    results.append(self.ser.readline())
+
+                    print("TPS1: ")
+                    print(results[0].decode('utf-8',errors = 'ignore').strip())
+
+                    print("TPS2: ")
+                    print(results[1].decode('utf-8',errors = 'ignore').strip())
+
+                    results.clear()
+
+                    results.append(self.ser.readline())
+                    results.append(self.ser.readline())
+                    results.append(self.ser.readline())
+                    results.append(self.ser.readline())
+
+                    if len(results[0]) == 0:
+                        success = False
+                        print("MCU não finalizou comando")
+                    else:
+                        if int(results[0].decode('utf-8',errors = 'ignore').strip()) == 1 and int(results[3].decode('utf-8',errors = 'ignore').strip()) == 170:
+                        #valid message
+                            if int(results[1].decode('utf-8',errors = 'ignore').strip()) == 11:
+                                #finished command
+                                print("Comando executado com sucesso")
+                            else:
+                                sucess = False
+                                print("Sem confirmação de execução do comando")
+                        else:
+                                sucess = False
+                                print("Mensagem enviada de maneira incorreta")
+
+                    
+
+                """
+                print(result.decode('utf-8',errors = 'ignore').strip())
+                result = self.ser.readline()
+                print(result.decode('utf-8',errors = 'ignore').strip())
+                result = self.ser.readline()
+                print(result.decode('utf-8',errors = 'ignore').strip())
+                result = self.ser.readline()
+                print(result.decode('utf-8',errors = 'ignore').strip())
+                """
+                    
+
+
+        else: 
+            print("Erro ao enviar comando.")
+        
+        return success
 
         #a = 0x02
         #self.ser.write(a.to_bytes(1,'big'))
