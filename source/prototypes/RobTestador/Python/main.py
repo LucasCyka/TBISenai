@@ -83,6 +83,7 @@ class app:
 
     def showTestScreen(self):
         os.system('clear' if os.name == 'posix' else 'cls')
+        self.ser.reset_input_buffer()
         if not self.ser.is_open:
             print("Testador nao conectado... Pressione enter para voltar ao menu principal")
             self.connected = False
@@ -155,7 +156,7 @@ class app:
         stop = False
         lastScrUpdt = time.time_ns() / 1000000
 
-        time.sleep(0.005) #wait 5 mileseconds before reading responses
+        time.sleep(0.015) #wait 15 mileseconds before reading responses
         os.system('clear' if os.name == 'posix' else 'cls')
         while not stop:
             val = self.ser.readline()
@@ -178,12 +179,33 @@ class app:
                     lastScrUpdt = time.time_ns() / 1000000
                     os.system('clear' if os.name == 'posix' else 'cls')
                     #print("valor recebido: %.2f" % valConverted)
-                    print("TPS1: %.2fV" % readings[len(readings) -2])
-                    print("TPS2: %.2fV" % readings[len(readings) -1])
-                time.sleep(0.050)
+                    if(len(readings) % 2 == 0):
+                        print("TPS1: %.2fV" % readings[len(readings) -2])
+                        print("TPS2: %.2fV" % readings[len(readings) -1])
+                    else:
+                        print("TPS1: %.2fV" % readings[len(readings) -1])
+                        print("TPS2: %.2fV" % readings[len(readings) -2])
+                time.sleep(0.025)
             else:
                 if val == "STOP":
                     stop = True
+                    
+                    #create data files
+                    with open('TPS1.txt', 'w') as file:
+                        id = 0
+                        for line in readings:
+                            if id % 2 == 0:
+                                file.write(f"{line}\n")
+                            id += 1
+                                
+                    with open('TPS2.txt', 'w') as file:
+                        id = 0
+                        for line in readings:
+                            if id % 2 != 0:
+                                file.write(f"{line}\n")
+                            id += 1
+                                
+                    
                     print("Teste finalizado. Pressione enter para voltar ao menu principal.")
                     usrInput = input("")
                     return
