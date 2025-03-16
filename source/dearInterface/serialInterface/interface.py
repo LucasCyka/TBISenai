@@ -66,15 +66,7 @@ class App:
     def connectTest(self):
         if not self.connected: return
 
-        try:
-            self.ser.write(START_BYTE.to_bytes(1,'big'))
-            self.ser.write(0x04.to_bytes(1,'big'))
-            self.ser.write(0x00.to_bytes(1,'big'))
-            self.ser.write(END_BYTE.to_bytes(1,'big'))
-        except:
-            cons = dpg.get_value(self.outputItem)
-            cons = str(cons + '\n\n' 'Erro ao enviar mensagem')
-            dpg.set_value(self.outputItem,cons)
+        if not self.sendComand(0): return
 
         #updates output
         cons = dpg.get_value(self.outputItem)
@@ -99,9 +91,66 @@ class App:
             dpg.set_value(self.outputItem,cons)
             print(ans)
 
-    def curveTest(self):
-        pass
+    def sendComand(self,cmd):
+        msg = []
+        match cmd:
+            case 0: #connect test
+                msg.append(START_BYTE.to_bytes(1,'big'))
+                msg.append(0x04.to_bytes(1,'big'))
+                msg.append(0x00.to_bytes(1,'big'))
+                msg.append(END_BYTE.to_bytes(1,'big'))
+            case 1: #curve test
+                msg.append(START_BYTE.to_bytes(1,'big'))
+                msg.append(0x02.to_bytes(1,'big'))
+                msg.append(0x00.to_bytes(1,'big'))
+                msg.append(END_BYTE.to_bytes(1,'big'))
+            case 2: #change dc
+                msg.append(START_BYTE.to_bytes(1,'big'))
+                msg.append(0x03.to_bytes(1,'big'))
+                msg.append(0x80.to_bytes(1,'big'))
+                msg.append(END_BYTE.to_bytes(1,'big'))
+            case _:
+                print("comando invalido")
+                return False
+        try:
+            self.ser.write(msg[0])
+            self.ser.write(msg[1])
+            self.ser.write(msg[2])
+            self.ser.write(msg[3])
 
+        except:
+            output = dpg.get_value(self.outputItem)
+            output = output + '\n\nFalha ao enviar comando'
+            dpg.set_value(self.outputItem,output)
+            return False
+        
+        return True
+
+    def curveTest(self):
+        if not self.connected: return
+        output = str(dpg.get_value(self.outputItem))
+        cInput = str(dpg.get_value(self.inputItem))
+
+        if self.sendComand(1):
+            output = output + '\n\n'+ '0x01\n0x02\n0x00\n0xAA\nAguardando resposta do\nESP-32'
+            dpg.set_value(self.outputItem,output)
+        else: return
+
+        time.sleep(0.2)   
+
+        ans = None
+        cInput = cInput + '\n\n'
+
+        while ans != "END":
+            ans = str(self.ser.readline().decode('utf-8',errors='ignore').strip())
+            cInput = cInput + '\n'+ str(ans)
+            dpg.set_value(self.inputItem,cInput)
+
+        output = output + '\n\n'+ 'Comando executado com \nsucesso.'
+        dpg.set_value(self.outputItem,output)
+
+    def changeDc(self):
+        pass
 
     def initInterface(self):
         dpg.create_context() #always need to be created and destroyed
@@ -121,7 +170,7 @@ class App:
             
             #buttons
             dpg.add_button(label="Conectar",pos=(165,10),callback=self.configSerial)
-            dpg.add_button(label="Teste Curva",pos=(0,60),width=100)
+            dpg.add_button(label="Teste Curva",pos=(0,60),width=100,callback=self.curveTest)
             dpg.add_button(label="Muda DC",pos=(100,60),width=100)
             dpg.add_button(label="Sensores",pos=(200,60),width=100)
             self.btnTestItem = dpg.add_button(label="Teste",pos=(300,60),width=100,callback=self.connectTest)
@@ -148,6 +197,7 @@ class App:
             # you can manually stop by using stop_dearpygui()
             #print("this will run every frame")
             #dpg.render_dearpygui_frame()
+
 
 
 app = App()
