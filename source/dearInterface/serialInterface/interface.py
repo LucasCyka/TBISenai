@@ -2,7 +2,7 @@ import serial
 import dearpygui.dearpygui as dpg
 import time
 
-SCREEN_WIDTH  = 400
+SCREEN_WIDTH  = 480
 SCREEN_HEIGHT = 350
 
 START_BYTE    = 0x01
@@ -107,7 +107,12 @@ class App:
             case 2: #change dc
                 msg.append(START_BYTE.to_bytes(1,'big'))
                 msg.append(0x03.to_bytes(1,'big'))
-                msg.append(0x80.to_bytes(1,'big'))
+                msg.append(0xB4.to_bytes(1,'big'))
+                msg.append(END_BYTE.to_bytes(1,'big'))
+            case 3: #get sensors data
+                msg.append(START_BYTE.to_bytes(1,'big'))
+                msg.append(0x0A.to_bytes(1,'big'))
+                msg.append(0x00.to_bytes(1,'big'))
                 msg.append(END_BYTE.to_bytes(1,'big'))
             case _:
                 print("comando invalido")
@@ -150,7 +155,32 @@ class App:
         dpg.set_value(self.outputItem,output)
 
     def changeDc(self):
-        pass
+        if not self.connected: return
+
+        if not self.sendComand(2): return
+
+        #updates output
+        cons = dpg.get_value(self.outputItem)
+        cons = str(cons + '\n\n'+ '0x01\n0x03\n0xB4\n0xAA\nAguardando resposta do\nESP-32')
+        dpg.set_value(self.outputItem,cons)
+
+        time.sleep(1)
+
+        ans = str(self.ser.readline().decode('utf-8',errors='ignore').strip())
+
+        if ans == 'END':
+            cons = dpg.get_value(self.outputItem)
+            cons = str(cons +  '\n\nComando executado com\nsucesso')
+            dpg.set_value(self.outputItem,cons)
+
+            cons2 = dpg.get_value(self.inputItem)
+            cons2 = str(cons2 +  '\n\n' + ans)
+            dpg.set_value(self.inputItem,cons2)
+        else:
+            cons = dpg.get_value(self.outputItem)
+            cons = str(cons + '\n\nSem resposta do ESP-32')
+            dpg.set_value(self.outputItem,cons)
+            print(ans)
 
     def initInterface(self):
         dpg.create_context() #always need to be created and destroyed
@@ -171,8 +201,8 @@ class App:
             #buttons
             dpg.add_button(label="Conectar",pos=(165,10),callback=self.configSerial)
             dpg.add_button(label="Teste Curva",pos=(0,60),width=100,callback=self.curveTest)
-            dpg.add_button(label="Muda DC",pos=(100,60),width=100)
-            dpg.add_button(label="Sensores",pos=(200,60),width=100)
+            dpg.add_button(label="Muda DC",pos=(100,60),width=100,callback=self.changeDc)
+            dpg.add_button(label="Sensores",pos=(200,60),width=100,callback=self.getSensorData)
             self.btnTestItem = dpg.add_button(label="Teste",pos=(300,60),width=100,callback=self.connectTest)
 
             #tooltips
@@ -198,6 +228,28 @@ class App:
             #print("this will run every frame")
             #dpg.render_dearpygui_frame()
 
+    def getSensorData(self):
+        if not self.connected: return
+        output = str(dpg.get_value(self.outputItem))
+        cInput = str(dpg.get_value(self.inputItem))
+
+        if self.sendComand(3):
+            output = output + '\n\n'+ '0x01\n0x0A\n0x00\n0xAA\nAguardando resposta do\nESP-32'
+            dpg.set_value(self.outputItem,output)
+        else: return
+
+        time.sleep(0.2)   
+
+        ans = None
+        cInput = cInput + '\n\n'
+
+        while ans != "END":
+            ans = str(self.ser.readline().decode('utf-8',errors='ignore').strip())
+            cInput = cInput + '\n'+ str(ans)
+            dpg.set_value(self.inputItem,cInput)
+
+        output = output + '\n\n'+ 'Comando executado com \nsucesso.'
+        dpg.set_value(self.outputItem,output)
 
 
 app = App()
