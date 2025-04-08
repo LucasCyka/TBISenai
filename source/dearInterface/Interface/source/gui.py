@@ -90,18 +90,18 @@ class GUI():
     def doWindows(self):
         with dpg.window(tag="root"):
             #text
-            dpg.add_text("Porta: ",pos=(10,10),label="PortLabel")
-            dpg.add_text("Modelo: ",pos=(400,10),label="ModelLabel")
-            dpg.add_text("Status: Não conectado",pos=(10,40),label="StatusLabel")
-            dpg.add_text("Pista 1: 0,0V",pos=(10,100),label="TPS1Label")
-            dpg.add_text("Pista 2: 0,0V",pos=(10,120),label="TPS2Label")
+            dpg.add_text("Porta: ",pos=(10,10),tag="PortLabel")
+            dpg.add_text("Modelo: ",pos=(400,10),tag="ModelLabel")
+            dpg.add_text("Status: Não conectado",pos=(10,40),tag="StatusLabel")
+            dpg.add_text("Pista 1: 0,0V",pos=(10,100),tag="TPS1Label")
+            dpg.add_text("Pista 2: 0,0V",pos=(10,120),tag="TPS2Label")
 
             #combos
-            self.portInput  = dpg.add_combo(("COM8","/tty/usb0"),width=150,pos=(70,10))
+            self.portInput  = dpg.add_combo(self.ser.getPorts(self.ser),width=150,pos=(70,10))
             self.modelInput = dpg.add_combo(("Ford Ka 1.5/1.6","New Fiesta","Ford Focus"),width=150,pos=(480,10),callback=self.updateModel)
 
             #buttons
-            self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10)) 
+            self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10),callback=self.onConnectBtn) 
             self.startBtn = dpg.add_button(label="INICIAR TESTE",pos=(150,110)) 
             self.sensorBtn = dpg.add_button(label="LER SENSORES",pos=(270,110)) 
             self.saveBtn = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110)) 
@@ -123,9 +123,31 @@ class GUI():
                 dpg.add_line_series(plotxData,plotyData1,parent="tps1",label="Pista 1")
                 dpg.add_line_series(plotxData,plotyData2,parent="tps2",label= "Pista 2")
 
-                
-
     
+    def onConnectBtn(self):
+        portValue = dpg.get_value(self.portInput)
+        if portValue == '': 
+            dpg.set_value("StatusLabel","Selecione uma porta.")
+            dpg.configure_item("StatusLabel",color=(255,255,0,255))
+            return
+
+        if self.ser.isConnected(self.ser):
+            dpg.set_value("StatusLabel","Conexão já estabelicida.")
+            dpg.configure_item("StatusLabel",color=(0,255,0,255))
+            return
+
+        dpg.set_value("StatusLabel","Conectando...")
+        dpg.configure_item("StatusLabel",color=(255,255,0,255))
+
+        if self.ser.connectTo(self.ser,portValue):
+            dpg.set_value("StatusLabel","Conexão estabelecida.")
+            dpg.configure_item("StatusLabel",color=(0,255,0,255))
+        else:
+            dpg.set_value("StatusLabel","Falha ao conectar.")
+            dpg.configure_item("StatusLabel",color=(255,0,0,255))
+
+
+
     def test(self):
         print("this is a test")
         #dpg.configure_item(self.carImage,texture_tag="car1")
