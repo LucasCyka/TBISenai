@@ -74,6 +74,7 @@ class GUI():
         dpg.create_context()
         self.addFonts()
         self.addImages()
+        self.doPopups()
         self.doWindows()
 
         dpg.create_viewport(title = "Testador de TBI", width= globals.SCREEN_WIDTH, height=globals.SCREEN_HEIGHT,resizable=False) #OS WINDOW
@@ -102,7 +103,7 @@ class GUI():
 
             #buttons
             self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10),callback=self.onConnectBtn) 
-            self.startBtn = dpg.add_button(label="INICIAR TESTE",pos=(150,110)) 
+            self.startBtn = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn) 
             self.sensorBtn = dpg.add_button(label="LER SENSORES",pos=(270,110)) 
             self.saveBtn = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110)) 
 
@@ -123,7 +124,30 @@ class GUI():
                 dpg.add_line_series(plotxData,plotyData1,parent="tps1",label="Pista 1")
                 dpg.add_line_series(plotxData,plotyData2,parent="tps2",label= "Pista 2")
 
-    
+    #create all popups that may appear to the user here
+    def doPopups(self):
+        with dpg.window(label="Warning1",modal=True,show=False,tag="warning1",no_title_bar=True,width= 300,height=100,pos=(globals.SCREEN_WIDTH/2-150,globals.SCREEN_HEIGHT/2-50),no_resize=True):
+            dpg.add_text("Selecione o modelo de carro!",pos=(50,20))
+            dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning1",show=False))
+
+        with dpg.window(label="Warning2",modal=True,show=False,tag="warning2",no_title_bar=True,width= 300,height=100,pos=(globals.SCREEN_WIDTH/2-150,globals.SCREEN_HEIGHT/2-50),no_resize=True):
+            dpg.add_text("Conecte-se ao testador primeiro!",pos=(40,20))
+            dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning2",show=False))
+
+
+    def onStartBtn(self):
+        if not self.ser.isConnected(self.ser):
+            dpg.configure_item("warning2",show=True)
+            return
+        
+        if dpg.get_value(self.modelInput) == '':
+            dpg.configure_item("warning1",show=True)
+            return
+
+        #TODO: check power supply with esp
+        #TODO: start test
+
+
     def onConnectBtn(self):
         portValue = dpg.get_value(self.portInput)
         if portValue == '': 
