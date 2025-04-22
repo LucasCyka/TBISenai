@@ -44,6 +44,8 @@ class SERIAL():
         
         try: 
             self.ser.open()
+            self.ser.reset_input_buffer()
+            self.ser.reset_output_buffer()
         except:
             return False
         
@@ -59,3 +61,8 @@ class SERIAL():
     
     def getCurrentPort(self):
         return self.ser.port
+    
+    def startCurveTest(self):
+        
+        return True
+        pass

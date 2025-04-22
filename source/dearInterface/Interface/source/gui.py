@@ -56,6 +56,7 @@ plotyData2 = [5,4,3,2,1,0,0,0,0,0,1,2,3,4,5]
 class GUI():
     ser = None
     inter1 = None #font
+    onCurveTest = False
 
     #ui elements
     portInput   = None
@@ -112,7 +113,7 @@ class GUI():
             #self.tbiImage = dpg.add_image(texture_tag="tbi1",pos = (700,50),width=80,height=80)
 
             #plots
-            with dpg.plot(label="Sensores de Posicao",width=780,height=440,pos=(0,150)):
+            with dpg.plot(label="Sensores de Posição",width=780,height=440,pos=(0,150)):
                 dpg.add_plot_legend()
                 
                 dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)")
@@ -143,9 +144,12 @@ class GUI():
         if dpg.get_value(self.modelInput) == '':
             dpg.configure_item("warning1",show=True)
             return
+        
+        if self.ser.startCurveTest(self.ser):
+            self.onCurveTest = True
 
         #TODO: check power supply with esp
-        #TODO: start test
+        
 
 
     def onConnectBtn(self):
