@@ -41,62 +41,21 @@ class SERIAL():
         self.ser.timeout       = 1
         self.ser.bytesize      = serial.EIGHTBITS
         self.ser.write_timeout = 1
-
+        
         try: 
             self.ser.open()
-            self.ser.reset_input_buffer()
-            self.ser.reset_output_buffer()
         except:
-            self.ser.close()
             return False
         
-        time.sleep(1) 
 
-        #check com
-        try:
-            self.ser.write(globals.START_BYTE.to_bytes(1,'big'))
-            self.ser.write(0x05.to_bytes(1,'big'))
-            self.ser.write(0x00.to_bytes(1,'big'))
-            self.ser.write(globals.END_BYTE.to_bytes(1,'big'))
-        except:
-            self.ser.close()
-            return False
-        
-        time.sleep(1) 
+        time.sleep(2) 
 
-        #check mcu answer
-        rawMsg = []
-        conMsg = []
-
-        try:
-            rawMsg.append(self.ser.readline())
-            time.sleep(1) 
-            conMsg = self.convertMsg(self,rawMsg)
-        except:
-            self.ser.close()
-            return False
-        
-        if not  conMsg[0] == 'ConnOk': 
-            self.ser.close()
-            return False
-        
         return True
-
     
     def isConnected(self):
+        print(self.ser.is_open)
         return self.ser.is_open
     
     
     def getCurrentPort(self):
         return self.ser.port
-    
-    def startCurveTest(self):
-        return True
-
-    def convertMsg(self,message):
-        convertedMessage = []
-        
-        for msg in message:
-            convertedMessage.append(msg.decode('utf-8',errors='ignore').strip())
-
-        return convertedMessage

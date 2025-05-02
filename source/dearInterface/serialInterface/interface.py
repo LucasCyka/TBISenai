@@ -219,7 +219,7 @@ class App:
         dpg.setup_dearpygui() #assign the viewport
         dpg.show_viewport()
         dpg.set_primary_window("mainWindow",True)
-        dpg.start_dearpygui() #matains the loop
+        dpg.start_dearpygui() #maintains the loop
             
         # below replaces, start_dearpygui()
         #while dpg.is_dearpygui_running():
