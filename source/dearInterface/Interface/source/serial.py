@@ -37,7 +37,7 @@ class SERIAL():
     
     def connectTo(self,port):
         self.ser.port          = port
-        self.ser.baudrate      = 115200
+        self.ser.baudrate      = 230400
         self.ser.timeout       = 1
         self.ser.bytesize      = serial.EIGHTBITS
         self.ser.write_timeout = 1
@@ -91,6 +91,28 @@ class SERIAL():
         return self.ser.port
     
     def startCurveTest(self):
+        try:
+            self.ser.write(globals.START_BYTE.to_bytes(1,'big'))
+            self.ser.write(0x04.to_bytes(1,'big'))
+            self.ser.write(0x00.to_bytes(1,'big'))
+            self.ser.write(globals.END_BYTE.to_bytes(1,'big'))
+        except:
+            return False
+        
+        time.sleep(1)
+
+        rawMsg = []
+        rawMsg.append(self.ser.readline())
+
+        convMsg = self.convertMsg(self,rawMsg)
+        
+        if convMsg[0] == 'PowerError':
+            return False #TODO: raise a warning to the interface
+
+        if convMsg[0] == 'END': 
+            self.ser.reset_input_buffer()
+            self.ser.reset_output_buffer()
+
         return True
 
     def convertMsg(self,message):
@@ -100,3 +122,6 @@ class SERIAL():
             convertedMessage.append(msg.decode('utf-8',errors='ignore').strip())
 
         return convertedMessage
+    
+    def getLine(self): #just return a line from the uart
+        return self.ser.readline().decode('utf-8',errors='ignore').strip()

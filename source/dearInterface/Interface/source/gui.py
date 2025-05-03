@@ -1,4 +1,5 @@
 import dearpygui.dearpygui as dpg
+import threading
 from source import globals
 
 images_data = {
@@ -86,7 +87,24 @@ class GUI():
         #manual render loop
         while dpg.is_dearpygui_running():
             dpg.render_dearpygui_frame()
-            #loop here, update plots here maybe?
+            if self.onCurveTest:
+
+                dpg.set_value('p1',[plotxData,plotyData1])
+                dpg.set_value('p2',[plotxData,plotyData2])
+                dpg.set_item_label('p1', 'Pista 1')
+                dpg.set_item_label('p2', 'Pista 2')
+
+    def updatePlotData(self):
+        while self.onCurveTest:
+
+            tps1 = self.ser.getLine(self.ser)
+            tps2 = self.ser.getLine(self.ser)
+
+            if tps1 == '' or tps2 == '': continue #avoid noise error
+
+            plotxData.append(plotxData[-1]+1)
+            plotyData1.append(float(tps1) * 2)
+            plotyData2.append(float(tps2) * 2)
 
     # create all windows that are necessary here
     def doWindows(self):
@@ -116,14 +134,15 @@ class GUI():
             with dpg.plot(label="Sensores de Posição",width=780,height=440,pos=(0,150)):
                 dpg.add_plot_legend()
                 
-                dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)")
-                dpg.add_plot_axis(dpg.mvYAxis,label="Tensão (V)",tag="tps1")
-                dpg.add_plot_axis(dpg.mvYAxis2,label="Tensão (V)",tag="tps2",no_label=True,no_tick_labels=True)
+                dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)",auto_fit=True)
+                dpg.set_axis_limits(dpg.last_item(), 0, 5000)
+                dpg.add_plot_axis(dpg.mvYAxis,label="Tensão (V)",tag="tps1",auto_fit=True)
+                dpg.add_plot_axis(dpg.mvYAxis2,label="Tensão (V)",tag="tps2",no_label=True,no_tick_labels=True,auto_fit=True)
                 dpg.set_axis_limits("tps1",-0.1,6)
                 dpg.set_axis_limits("tps2",-0.1,6)
 
-                dpg.add_line_series(plotxData,plotyData1,parent="tps1",label="Pista 1")
-                dpg.add_line_series(plotxData,plotyData2,parent="tps2",label= "Pista 2")
+                dpg.add_line_series(plotxData,plotyData1,parent="tps1",label="Pista 1",tag='p1')
+                dpg.add_line_series(plotxData,plotyData2,parent="tps2",label= "Pista 2",tag='p2')
 
     #create all popups that may appear to the user here
     def doPopups(self):
@@ -147,7 +166,11 @@ class GUI():
         
         if self.ser.startCurveTest(self.ser):
             self.onCurveTest = True
-
+            #plotxData.clear()
+            #plotyData1.clear()
+            #plotyData2.clear()
+            #plotxData.append(0)
+            threading.Thread(target=self.updatePlotData,daemon=True).start()
         #TODO: check power supply with esp
         
 
