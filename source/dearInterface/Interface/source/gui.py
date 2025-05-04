@@ -1,5 +1,6 @@
 import dearpygui.dearpygui as dpg
 import threading
+import time
 from source import globals
 
 images_data = {
@@ -50,9 +51,10 @@ images_data = {
     }
 }
 
-plotxData  = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-plotyData1 = [0,1,2,3,4,5,5,5,5,5,4,3,2,1,0]
-plotyData2 = [5,4,3,2,1,0,0,0,0,0,1,2,3,4,5]
+plotxData  = [0.0]
+plotyData1 = [0.0]
+plotyData2 = [5.0]
+timing     = 0
 
 class GUI():
     ser = None
@@ -88,7 +90,7 @@ class GUI():
         while dpg.is_dearpygui_running():
             dpg.render_dearpygui_frame()
             if self.onCurveTest:
-
+                
                 dpg.set_value('p1',[plotxData,plotyData1])
                 dpg.set_value('p2',[plotxData,plotyData2])
                 dpg.set_item_label('p1', 'Pista 1')
@@ -96,15 +98,25 @@ class GUI():
 
     def updatePlotData(self):
         while self.onCurveTest:
-
+            global timing
+            
             tps1 = self.ser.getLine(self.ser)
             tps2 = self.ser.getLine(self.ser)
 
-            if tps1 == '' or tps2 == '': continue #avoid noise error
+            if tps1 == 'END' or tps2 == 'END':
+                self.onCurveTest = False
+                continue 
 
-            plotxData.append(plotxData[-1]+1)
-            plotyData1.append(float(tps1) * 2)
-            plotyData2.append(float(tps2) * 2)
+
+            if tps1 == '' or tps2 == '': continue #avoid noise error
+            
+            interval = (time.perf_counter() - timing) * 1000
+
+            plotxData.append(interval)
+            plotyData1.append(float(tps1) * 2.0)
+            plotyData2.append(float(tps2) * 2.0)
+
+            
 
     # create all windows that are necessary here
     def doWindows(self):
@@ -124,7 +136,7 @@ class GUI():
             self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10),callback=self.onConnectBtn) 
             self.startBtn = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn) 
             self.sensorBtn = dpg.add_button(label="LER SENSORES",pos=(270,110)) 
-            self.saveBtn = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110)) 
+            self.saveBtn = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn) 
 
             #images
             self.carImage = dpg.add_image(texture_tag="placeholder",pos = (600,10),width=150,height=150)
@@ -135,7 +147,7 @@ class GUI():
                 dpg.add_plot_legend()
                 
                 dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)",auto_fit=True)
-                dpg.set_axis_limits(dpg.last_item(), 0, 5000)
+                dpg.set_axis_limits(dpg.last_item(), 0, 12000)
                 dpg.add_plot_axis(dpg.mvYAxis,label="Tensão (V)",tag="tps1",auto_fit=True)
                 dpg.add_plot_axis(dpg.mvYAxis2,label="Tensão (V)",tag="tps2",no_label=True,no_tick_labels=True,auto_fit=True)
                 dpg.set_axis_limits("tps1",-0.1,6)
@@ -154,6 +166,8 @@ class GUI():
             dpg.add_text("Conecte-se ao testador primeiro!",pos=(40,20))
             dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning2",show=False))
 
+        
+
 
     def onStartBtn(self):
         if not self.ser.isConnected(self.ser):
@@ -166,14 +180,17 @@ class GUI():
         
         if self.ser.startCurveTest(self.ser):
             self.onCurveTest = True
-            #plotxData.clear()
-            #plotyData1.clear()
-            #plotyData2.clear()
-            #plotxData.append(0)
+            global timing
+            global plotxData
+            global plotyData1
+            global plotyData2
+            timing = time.perf_counter()
+            plotxData  = [0.0]
+            plotyData1 = [0.0]
+            plotyData2 = [5.0]
             threading.Thread(target=self.updatePlotData,daemon=True).start()
         #TODO: check power supply with esp
         
-
 
     def onConnectBtn(self):
         portValue = dpg.get_value(self.portInput)
@@ -197,7 +214,9 @@ class GUI():
             dpg.set_value("StatusLabel","Falha ao conectar.")
             dpg.configure_item("StatusLabel",color=(255,0,0,255))
 
-
+    def onSaveBtn(self):
+        print("save")
+        pass
 
     def test(self):
         print("this is a test")
