@@ -166,8 +166,9 @@ class GUI():
             dpg.add_text("Conecte-se ao testador primeiro!",pos=(40,20))
             dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning2",show=False))
 
-        
-
+        #file dialog popups
+        dpg.add_file_dialog(directory_selector=True,show=False,callback=self.saveGraph,tag="graph_dialog",
+            width=600,height=300,)
 
     def onStartBtn(self):
         if not self.ser.isConnected(self.ser):
@@ -215,8 +216,22 @@ class GUI():
             dpg.configure_item("StatusLabel",color=(255,0,0,255))
 
     def onSaveBtn(self):
-        print("save")
-        pass
+        dpg.show_item("graph_dialog")
+
+    def saveGraph(self,sender,app_data):
+        dir = app_data['file_path_name']
+
+        with open(dir + '/horizontal.txt','w') as file:
+            for line in plotxData:
+                file.write(f"{line}\n")
+
+        with open(dir + '/pista1.txt','w') as file:
+            for line in plotyData1:
+                file.write(f"{line}\n")
+
+        with open(dir + '/pista2.txt','w') as file:
+            for line in plotyData2:
+                file.write(f"{line}\n")
 
     def test(self):
         print("this is a test")
