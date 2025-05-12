@@ -32,7 +32,7 @@ class SERIAL():
 
             ports.append(n)
 
-
+        ports.append("ATUALIZAR")
         return ports
     
     def connectTo(self,port):
@@ -90,6 +90,39 @@ class SERIAL():
     def getCurrentPort(self):
         return self.ser.port
     
+    def getSensorData(self):
+        sensorValue = [-1.00,-1.00]
+
+        try:
+            self.ser.write(globals.START_BYTE.to_bytes(1,'big'))
+            self.ser.write(0x0A.to_bytes(1,'big'))
+            self.ser.write(0x00.to_bytes(1,'big'))
+            self.ser.write(globals.END_BYTE.to_bytes(1,'big'))
+        except:
+            return sensorValue
+        
+        time.sleep(1)
+
+        rawMsg = []
+        rawMsg.append(self.ser.readline())
+        rawMsg.append(self.ser.readline())
+        rawMsg.append(self.ser.readline())
+
+        time.sleep(0.5)
+        
+        if len(rawMsg) == 0: return sensorValue
+
+        convMsg = self.convertMsg(self,rawMsg)
+        
+        if convMsg[0] == 'PowerError':
+            return sensorValue #TODO: raise a warning to the interface
+        
+        if convMsg[0] == "END":
+            sensorValue[0] = float(convMsg[1])
+            sensorValue[1] = float(convMsg[2])
+
+        return sensorValue
+
     def startCurveTest(self):
         try:
             self.ser.write(globals.START_BYTE.to_bytes(1,'big'))

@@ -1,9 +1,10 @@
 #include "ADS1X15.h"
 
 //messsages id
-#define INVALID 128
-#define CONNECT 129
-#define TESTCMD 130
+#define INVALID   128
+#define CONNECT   129
+#define TESTCMD   130
+#define GETSENSOR 131
 
 //pins
 #define MOTOR_PIN       2
@@ -74,6 +75,16 @@ void loop() {
           opening     = true;
         }
 
+        /**************** get sensor data *****************/
+        if (getMessage(msgBuffer) == GETSENSOR){ 
+          Serial.println("END"); //tell the interface the command has been understood and will be executed
+          int tps1 = ADS.readADC(0); 
+          int tps2 = ADS.readADC(1);  
+
+          Serial.println(ADS.toVoltage(tps1),3);
+          Serial.println(ADS.toVoltage(tps2),3);
+        }
+
       }
 
     }
@@ -91,6 +102,9 @@ int getMessage(unsigned char *msg){
         break;
       case 0x04:
         decodedMessage = TESTCMD;
+        break;
+      case 0x0A:
+        decodedMessage = GETSENSOR;
         break;
       default:
         decodedMessage = INVALID;

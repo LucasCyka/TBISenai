@@ -68,6 +68,9 @@ class GUI():
     sensorBtn   = None
     saveBtn     = None
     startBtn    = None
+    monitorBtn  = None
+    helpBtn     = None
+    Test2Btn    = None
     carImage    = None
     tbiImage    = None
 
@@ -107,7 +110,6 @@ class GUI():
                 self.onCurveTest = False
                 continue 
 
-
             if tps1 == '' or tps2 == '': continue #avoid noise error
             
             interval = (time.perf_counter() - timing) * 1000
@@ -129,14 +131,17 @@ class GUI():
             dpg.add_text("Pista 2: 0,0V",pos=(10,120),tag="TPS2Label")
 
             #combos
-            self.portInput  = dpg.add_combo(self.ser.getPorts(self.ser),width=150,pos=(70,10))
+            self.portInput  = dpg.add_combo(self.ser.getPorts(self.ser),width=150,pos=(70,10),callback=self.updatePorts)
             self.modelInput = dpg.add_combo(("Ford Ka 1.5/1.6","New Fiesta","Ford Focus"),width=150,pos=(480,10),callback=self.updateModel)
 
             #buttons
             self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10),callback=self.onConnectBtn) 
-            self.startBtn = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn) 
-            self.sensorBtn = dpg.add_button(label="LER SENSORES",pos=(270,110)) 
-            self.saveBtn = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn) 
+            self.startBtn   = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn,width=110) 
+            self.sensorBtn  = dpg.add_button(label="LER SENSORES",pos=(270,110),callback=self.onReadBtn,width=116) 
+            self.saveBtn    = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn,width=135) 
+            self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(150,80),width=110) 
+            self.Test2Btn   = dpg.add_button(label="ACELERAR",pos=(270,80),width=116) 
+            self.helpBtn    = dpg.add_button(label="MANUAL",pos=(395,80),width=135) 
 
             #images
             self.carImage = dpg.add_image(texture_tag="placeholder",pos = (600,10),width=150,height=150)
@@ -165,6 +170,14 @@ class GUI():
         with dpg.window(label="Warning2",modal=True,show=False,tag="warning2",no_title_bar=True,width= 300,height=100,pos=(globals.SCREEN_WIDTH/2-150,globals.SCREEN_HEIGHT/2-50),no_resize=True):
             dpg.add_text("Conecte-se ao testador primeiro!",pos=(40,20))
             dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning2",show=False))
+
+        with dpg.window(label="Warning3",modal=True,show=False,tag="warning3",no_title_bar=True,width= 300,height=100,pos=(globals.SCREEN_WIDTH/2-150,globals.SCREEN_HEIGHT/2-50),no_resize=True):
+            dpg.add_text("Sem resposta do testador!",pos=(60,20))
+            dpg.add_button(label="OK",pos=(125,60),width=50,callback=lambda: dpg.configure_item("warning3",show=False))
+
+        with dpg.window(label="Warning4",modal=True,show=False,tag="warning4",no_title_bar=True,width= 400,height=100,pos=(globals.SCREEN_WIDTH/2-200,globals.SCREEN_HEIGHT/2-50),no_resize=True):
+            dpg.add_text("Falha nos sensores. Verifique a conexão com o TBI.",pos=(25,20))
+            dpg.add_button(label="OK",pos=(170,60),width=50,callback=lambda: dpg.configure_item("warning4",show=False))
 
         #file dialog popups
         dpg.add_file_dialog(directory_selector=True,show=False,callback=self.saveGraph,tag="graph_dialog",
@@ -217,6 +230,25 @@ class GUI():
 
     def onSaveBtn(self):
         dpg.show_item("graph_dialog")
+
+    def onReadBtn(self):
+        if not self.ser.isConnected(self.ser):
+            dpg.configure_item("warning2",show=True)
+            return
+        
+        val = self.ser.getSensorData(self.ser)
+
+        if val[0] <= 0 and val[1] <= 0:
+            dpg.configure_item("warning3",show=True)
+            return
+        
+        dpg.set_value(item="TPS1Label",value="Pista 1: " + str(val[0]) + "V")
+        dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
+
+        if(val[0] < 0.2 or val[1] < 0.2):
+            dpg.configure_item("warning4",show=True)
+            return
+        
 
     def saveGraph(self,sender,app_data):
         dir = app_data['file_path_name']
@@ -276,7 +308,12 @@ class GUI():
             case __:
                 pass
 
+    def updatePorts(self):
+        val = dpg.get_value(self.portInput)
         
+        if val == "ATUALIZAR": #it means the user wants to get all ports available
+            dpg.configure_item(self.portInput,items=self.ser.getPorts(self.ser))
+            dpg.set_value(self.portInput,"")
 
     def __exit__():
         dpg.destroy_context()
