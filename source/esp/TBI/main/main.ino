@@ -5,6 +5,7 @@
 #define CONNECT   129
 #define TESTCMD   130
 #define GETSENSOR 131
+#define CONTEST   132
 
 //pins
 #define MOTOR_PIN       2
@@ -49,7 +50,8 @@ void setup() {
 void loop() {
     unsigned char msgBuffer[5];
     if(oncurveTest) {curveTest();}
-
+    //TODO: if there was a connection, check if its on
+    
     //deal with messages from the mcu
     if(Serial.available()>0){
       if(Serial.readBytes(msgBuffer,4)){

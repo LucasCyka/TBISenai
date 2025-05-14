@@ -57,9 +57,13 @@ plotyData2 = [5.0]
 timing     = 0
 
 class GUI():
-    ser = None
-    inter1 = None #font
-    onCurveTest = False
+    ser                     = None
+    inter1                  = None #font
+    commandQueue            = None
+    onCurveTest             = False
+    connCheckElapsedFrames  = 0
+    connCheckElapsedSeconds = 0
+
 
     #ui elements
     portInput   = None
@@ -73,6 +77,9 @@ class GUI():
     Test2Btn    = None
     carImage    = None
     tbiImage    = None
+
+    #threads
+    statusThread = None
 
     def __init__(self,ser):
         self.ser = ser
@@ -99,6 +106,37 @@ class GUI():
                 dpg.set_item_label('p1', 'Pista 1')
                 dpg.set_item_label('p2', 'Pista 2')
 
+            #commands queue
+            if self.commandQueue != None and self.ser.isConnected(self.ser):
+                if not self.ser.isBusy(self.ser):
+                    self.commandQueue()
+                    print("called queue")
+                    self.commandQueue = None
+
+                pass
+
+            if not self.onCurveTest and not self.ser.isBusy(self.ser) and self.ser.isConnected(self.ser):
+                #check from time to time if it still still connected, if not so update the ui
+                self.connCheckElapsedFrames = self.connCheckElapsedFrames +1
+                
+                if self.connCheckElapsedFrames % 60 == 0:
+                    self.connCheckElapsedSeconds = self.connCheckElapsedSeconds + 1
+
+                #every 2 seconds check connection
+                #if self.connCheckElapsedSeconds >= 2:
+                #    self.connCheckElapsedSeconds = 0
+                    #if not self.ser.pingMcu(self.ser):
+                    #    dpg.set_value("StatusLabel","Testador desconectado.")
+                    #    dpg.configure_item("StatusLabel",color=(255,0,0,255))
+
+    def updateConnStatus(self):
+        while not self.onCurveTest and not self.ser.isBusy(self.ser) and self.ser.isConnected(self.ser) and self.commandQueue == None:
+            if self.connCheckElapsedSeconds >= 2:
+                if not self.ser.pingMcu(self.ser):
+                    dpg.set_value("StatusLabel","Testador desconectado.")
+                    dpg.configure_item("StatusLabel",color=(255,0,0,255))
+                    self.connCheckElapsedSeconds = 0
+
     def updatePlotData(self):
         while self.onCurveTest:
             global timing
@@ -108,6 +146,7 @@ class GUI():
 
             if tps1 == 'END' or tps2 == 'END':
                 self.onCurveTest = False
+                threading.Thread(target=self.updateConnStatus,daemon=True).start()
                 continue 
 
             if tps1 == '' or tps2 == '': continue #avoid noise error
@@ -117,8 +156,6 @@ class GUI():
             plotxData.append(interval)
             plotyData1.append(float(tps1) * 2.0)
             plotyData2.append(float(tps2) * 2.0)
-
-            
 
     # create all windows that are necessary here
     def doWindows(self):
@@ -184,6 +221,12 @@ class GUI():
             width=600,height=300,)
 
     def onStartBtn(self):
+        if self.onCurveTest: return
+        if self.ser.isBusy(self.ser): 
+            self.commandQueue = self.onStartBtn
+            print("busy")
+            return
+            
         if not self.ser.isConnected(self.ser):
             dpg.configure_item("warning2",show=True)
             return
@@ -203,7 +246,6 @@ class GUI():
             plotyData1 = [0.0]
             plotyData2 = [5.0]
             threading.Thread(target=self.updatePlotData,daemon=True).start()
-        #TODO: check power supply with esp
         
 
     def onConnectBtn(self):
@@ -224,6 +266,8 @@ class GUI():
         if self.ser.connectTo(self.ser,portValue):
             dpg.set_value("StatusLabel","Conexão estabelecida.")
             dpg.configure_item("StatusLabel",color=(0,255,0,255))
+            threading.Thread(target=self.updateConnStatus,daemon=True).start()
+            
         else:
             dpg.set_value("StatusLabel","Falha ao conectar.")
             dpg.configure_item("StatusLabel",color=(255,0,0,255))
@@ -236,6 +280,10 @@ class GUI():
             dpg.configure_item("warning2",show=True)
             return
         
+        if self.ser.isBusy(self.ser): 
+            self.commandQueue = self.onReadBtn
+            return
+
         val = self.ser.getSensorData(self.ser)
 
         if val[0] <= 0 and val[1] <= 0:
@@ -245,6 +293,8 @@ class GUI():
         dpg.set_value(item="TPS1Label",value="Pista 1: " + str(val[0]) + "V")
         dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
 
+        threading.Thread(target=self.updateConnStatus,daemon=True).start()
+        
         if(val[0] < 0.2 or val[1] < 0.2):
             dpg.configure_item("warning4",show=True)
             return
