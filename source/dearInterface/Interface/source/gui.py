@@ -130,7 +130,9 @@ class GUI():
                     #    dpg.configure_item("StatusLabel",color=(255,0,0,255))
 
     def updateConnStatus(self):
+        print("is pinging?")
         while not self.onCurveTest and not self.ser.isBusy(self.ser) and self.ser.isConnected(self.ser) and self.commandQueue == None:
+            
             if self.connCheckElapsedSeconds >= 2:
                 if not self.ser.pingMcu(self.ser):
                     dpg.set_value("StatusLabel","Testador desconectado.")
@@ -176,9 +178,9 @@ class GUI():
             self.startBtn   = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn,width=110) 
             self.sensorBtn  = dpg.add_button(label="LER SENSORES",pos=(270,110),callback=self.onReadBtn,width=116) 
             self.saveBtn    = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn,width=135) 
-            self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(150,80),width=110) 
-            self.Test2Btn   = dpg.add_button(label="ACELERAR",pos=(270,80),width=116) 
-            self.helpBtn    = dpg.add_button(label="MANUAL",pos=(395,80),width=135) 
+            #self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(150,80),width=110) 
+            #self.Test2Btn   = dpg.add_button(label="ACELERAR",pos=(270,80),width=116) 
+            #self.helpBtn    = dpg.add_button(label="MANUAL",pos=(395,80),width=135) 
 
             #images
             self.carImage = dpg.add_image(texture_tag="placeholder",pos = (600,10),width=150,height=150)
@@ -224,15 +226,17 @@ class GUI():
         if self.onCurveTest: return
         if self.ser.isBusy(self.ser): 
             self.commandQueue = self.onStartBtn
-            print("busy")
             return
-            
+
         if not self.ser.isConnected(self.ser):
             dpg.configure_item("warning2",show=True)
             return
         
         if dpg.get_value(self.modelInput) == '':
             dpg.configure_item("warning1",show=True)
+            time.sleep(0.1)
+            self.commandQueue = None
+            threading.Thread(target=self.updateConnStatus,daemon=True).start()
             return
         
         if self.ser.startCurveTest(self.ser):
@@ -276,6 +280,8 @@ class GUI():
         dpg.show_item("graph_dialog")
 
     def onReadBtn(self):
+        if self.onCurveTest: return
+
         if not self.ser.isConnected(self.ser):
             dpg.configure_item("warning2",show=True)
             return
@@ -283,6 +289,8 @@ class GUI():
         if self.ser.isBusy(self.ser): 
             self.commandQueue = self.onReadBtn
             return
+        
+        self.commandQueue = None
 
         val = self.ser.getSensorData(self.ser)
 
@@ -294,7 +302,7 @@ class GUI():
         dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
 
         threading.Thread(target=self.updateConnStatus,daemon=True).start()
-        
+        print("thread called again")
         if(val[0] < 0.2 or val[1] < 0.2):
             dpg.configure_item("warning4",show=True)
             return

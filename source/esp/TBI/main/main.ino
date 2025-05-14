@@ -11,6 +11,7 @@
 #define MOTOR_PIN       2
 #define OVERCURRENT_PIN 4
 #define OVERVOLTAGE_PIN 5
+#define CONNLED_PIN     23
 
 //general conf.
 #define I2C_SPEED      400000
@@ -20,13 +21,14 @@
 #define OPEN_INTERVAL  1000
 
 //globals
-bool connected      = false;
-bool adcConnected   = false;
-bool oncurveTest    = false;
-bool finisingTest   = false;
-bool opening        = true;
-int  pwmInterval    = 0;
-int  maxDc          = 80; 
+bool connected         = false;
+bool adcConnected      = false;
+bool oncurveTest       = false;
+bool finisingTest      = false;
+bool opening           = true;
+int  pwmInterval       = 0;
+int  maxDc             = 85; 
+int  intervalConnCheck = 0;
 
 ADS1115 ADS(0x48);
 
@@ -35,9 +37,12 @@ void setup() {
   pinMode(MOTOR_PIN,OUTPUT);
   pinMode(OVERCURRENT_PIN,INPUT);
   pinMode(OVERVOLTAGE_PIN,INPUT);
+  pinMode(CONNLED_PIN,OUTPUT);
 
   //ensures the motor will be off
   digitalWrite(MOTOR_PIN,LOW);
+
+  digitalWrite(CONNLED_PIN,LOW);
 
   //pwm configuration
   ledcAttach(MOTOR_PIN,500,8);
@@ -48,8 +53,15 @@ void setup() {
 }
 
 void loop() {
+
+
     unsigned char msgBuffer[5];
     if(oncurveTest) {curveTest();}
+    else{
+      if ((millis() - intervalConnCheck) >= 3000 &&  Serial.available() == 0){
+        digitalWrite(CONNLED_PIN,LOW);
+      }
+    }
     //TODO: if there was a connection, check if its on
     
     //deal with messages from the mcu
@@ -60,6 +72,8 @@ void loop() {
         if (getMessage(msgBuffer) == CONNECT){ 
           Serial.println("ConnOk"); //just answer
           connected = true;
+          intervalConnCheck = millis();
+          digitalWrite(CONNLED_PIN,HIGH);
         }
 
 
