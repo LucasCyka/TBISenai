@@ -212,3 +212,6 @@ class SERIAL():
     
     def getLine(self): #just return a line from the uart
         return self.ser.readline().decode('utf-8',errors='ignore').strip()
+    
+    def closePort(self):
+        self.ser.closePort(self.ser)

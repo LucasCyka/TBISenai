@@ -50,7 +50,7 @@ void setup() {
 
   Serial.begin(230400);
   Serial.setTimeout(1000); 
-  Wire.begin(14,27); //TODO: remove on final product
+  //Wire.begin(14,27); //TODO: remove on final product
   adcSetup(); 
 }
 
@@ -139,7 +139,7 @@ int getMessage(unsigned char *msg){
 }
 
 void adcSetup(){
-  //Wire.begin(21,22); TODO: add again on final product
+  Wire.begin(21,22); TODO: add again on final product
   if (ADS.begin()){
 
     ADS.setDataRate(7);

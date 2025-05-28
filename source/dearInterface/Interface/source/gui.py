@@ -56,9 +56,14 @@ plotyData1 = [0.0]
 plotyData2 = [5.0]
 timing     = 0
 
+#pre-measured data
+dummyPlotxData  = [0.0,1.0]
+dummyPlotyData  = [0.0,1,0]
+
 class GUI():
     ser                     = None
-    inter1                  = None #font
+    inter1                  = None #inter font size 18
+    inter2                  = None #inter font size 24
     commandQueue            = None
     onCurveTest             = False
     connCheckElapsedFrames  = 0
@@ -66,17 +71,21 @@ class GUI():
 
 
     #ui elements
-    portInput   = None
-    modelInput  = None
-    connectBtn  = None
-    sensorBtn   = None
-    saveBtn     = None
-    startBtn    = None
-    monitorBtn  = None
-    helpBtn     = None
-    Test2Btn    = None
-    carImage    = None
-    tbiImage    = None
+    portInput       = None
+    modelInput      = None
+    connectBtn      = None
+    sensorBtn       = None
+    saveBtn         = None
+    startBtn        = None
+    monitorBtn      = None
+    helpBtn         = None
+    Test2Btn        = None
+    carImage        = None
+    tbiImage        = None
+    sensorStatus    = None
+    pista1Reading   = None
+    pista2Reading   = None
+    updateSensorBtn = None
 
     #threads
     statusThread = None
@@ -89,6 +98,7 @@ class GUI():
         self.addFonts()
         self.addImages()
         self.doPopups()
+        self.loadDummydata()
         self.doWindows()
 
         dpg.create_viewport(title = "Testador de TBI", width= globals.SCREEN_WIDTH, height=globals.SCREEN_HEIGHT,resizable=False) #OS WINDOW
@@ -164,26 +174,26 @@ class GUI():
         with dpg.window(tag="root"):
             #text
             dpg.add_text("Porta: ",pos=(10,10),tag="PortLabel")
-            dpg.add_text("Modelo: ",pos=(400,10),tag="ModelLabel")
+            dpg.add_text("Modelo: ",pos=(400+230,10),tag="ModelLabel")
             dpg.add_text("Status: Não conectado",pos=(10,40),tag="StatusLabel")
             dpg.add_text("Pista 1: 0,0V",pos=(10,100),tag="TPS1Label")
             dpg.add_text("Pista 2: 0,0V",pos=(10,120),tag="TPS2Label")
 
             #combos
             self.portInput  = dpg.add_combo(self.ser.getPorts(self.ser),width=150,pos=(70,10),callback=self.updatePorts)
-            self.modelInput = dpg.add_combo(("Ford Ka 1.5/1.6","New Fiesta","Ford Focus"),width=150,pos=(480,10),callback=self.updateModel)
+            self.modelInput = dpg.add_combo(("Ford Ka 1.5/1.6","New Fiesta","Ford Focus"),width=150,pos=(480+230,10),callback=self.updateModel)
 
             #buttons
             self.connectBtn = dpg.add_button(label="Conectar",pos=(230,10),callback=self.onConnectBtn) 
             self.startBtn   = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn,width=110) 
             self.sensorBtn  = dpg.add_button(label="LER SENSORES",pos=(270,110),callback=self.onReadBtn,width=116) 
             self.saveBtn    = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn,width=135) 
-            #self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(150,80),width=110) 
+            self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(540,110),width=110) 
             #self.Test2Btn   = dpg.add_button(label="ACELERAR",pos=(270,80),width=116) 
             #self.helpBtn    = dpg.add_button(label="MANUAL",pos=(395,80),width=135) 
 
             #images
-            self.carImage = dpg.add_image(texture_tag="placeholder",pos = (600,10),width=150,height=150)
+            self.carImage = dpg.add_image(texture_tag="placeholder",pos = (600+230,10),width=150,height=150)
             #self.tbiImage = dpg.add_image(texture_tag="tbi1",pos = (700,50),width=80,height=80)
 
             #plots
@@ -199,6 +209,69 @@ class GUI():
 
                 dpg.add_line_series(plotxData,plotyData1,parent="tps1",label="Pista 1",tag='p1')
                 dpg.add_line_series(plotxData,plotyData2,parent="tps2",label= "Pista 2",tag='p2')
+
+            with dpg.plot(label="Esperado",width=210,height=210,pos=(790,150)):
+                #dpg.add_plot_legend()
+                
+                dpg.add_plot_axis(dpg.mvXAxis,label="t",auto_fit=True,no_label=True,no_tick_labels=True)
+                dpg.set_axis_limits(dpg.last_item(), 0, 10000)
+                dpg.add_plot_axis(dpg.mvYAxis,label="ExemploTensao",tag="Exemplo1",auto_fit=True,no_label=True,no_tick_labels=True)
+                dpg.set_axis_limits("Exemplo1",-0.1,6)
+
+                dpg.add_line_series(dummyPlotxData,dummyPlotyData,parent="Exemplo1",label="esperado1",tag='dummy1')
+
+            with dpg.plot(label="Defeito",width=210,height=210,pos=(790,380)):
+                dpg.add_plot_legend()
+                
+                dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)",auto_fit=True,no_label=True,no_tick_labels=True)
+                dpg.set_axis_limits(dpg.last_item(), 0, 10000)
+                dpg.add_plot_axis(dpg.mvYAxis,label="ExemploTensao2",tag="Exemplo2",auto_fit=True,no_label=True,no_tick_labels=True)
+                dpg.set_axis_limits("Exemplo2",-0.1,6)
+
+        with dpg.window(tag="SensorReadings",label="Sensores de Posição",show=False,width=600,height=300,modal=True,pos=(globals.SCREEN_WIDTH/2-300,globals.SCREEN_HEIGHT/2-150)):
+            self.sensorStatus  = dpg.add_text("  ",color=(255,255,0,255))
+            dpg.add_text("  ")
+            dpg.add_text("Pista 1: ")
+            dpg.add_text("Pista 2: ")
+
+            self.pista1Reading = dpg.add_text(" Carregando...",pos=(60,84),color=(255,255,0,255))
+            self.pista2Reading = dpg.add_text(" Carregando...",pos=(60,112),color=(255,255,0,255))
+
+            dpg.bind_item_font(self.pista1Reading,self.inter2)
+            dpg.bind_item_font(self.pista2Reading,self.inter2)
+            dpg.add_text("   ")
+            dpg.add_text("Ford Ka 1.5/1.6",pos=(490,150))
+            self.updateSensorBtn = dpg.add_button(label="ATUALIZAR",pos=(475,90),height=50)
+            dpg.bind_item_font(self.updateSensorBtn,self.inter2)
+            
+            with dpg.table(header_row=True,tag="SensorTable1",borders_outerH=True):
+
+                dpg.add_table_column(label="      ")
+                dpg.add_table_column(label="Pista 1")
+                dpg.add_table_column(label="Pista 2")
+
+
+                with dpg.table_row():
+                    dpg.add_text("Repouso: ")
+                    dpg.add_text("4,00 V")
+                    dpg.add_text("0,40 V")
+
+            with dpg.table(header_row=True,tag="SensorTable2"):
+
+                dpg.add_table_column(label="      ",)
+                dpg.add_table_column(label="Pista 1")
+                dpg.add_table_column(label="Pista 2")
+
+
+                with dpg.table_row():
+                    dpg.add_text("Abertura: ")
+                    dpg.add_text("0,40 V")
+                    dpg.add_text("4,00 V")
+            
+            #dpg.highlight_table_cell("SensorTable1",0,0,[0,255,0,50])
+            #dpg.highlight_table_cell("SensorTable1",0,1,[0,255,0,50])
+            #dpg.highlight_table_cell("SensorTable1",0,2,[0,255,0,50])
+            #dpg.highlight_table_cell("SensorTable2",0,2,[0,255,0,50])
 
     #create all popups that may appear to the user here
     def doPopups(self):
@@ -285,26 +358,48 @@ class GUI():
         if not self.ser.isConnected(self.ser):
             dpg.configure_item("warning2",show=True)
             return
-        
+
         if self.ser.isBusy(self.ser): 
             self.commandQueue = self.onReadBtn
             return
         
+        if dpg.get_value(self.modelInput) == '':
+            dpg.configure_item("warning1",show=True)
+            time.sleep(0.1)
+            self.commandQueue = None
+            threading.Thread(target=self.updateConnStatus,daemon=True).start()
+            return
+
         self.commandQueue = None
 
+        #now update things on popup
+        dpg.configure_item("SensorReadings",show=True)
+        dpg.configure_item(self.pista1Reading,color=(255,255,0,255))
+        dpg.configure_item(self.pista2Reading,color=(255,255,0,255))
+        dpg.set_value(self.pista1Reading,"Carregando...")
+        dpg.set_value(self.pista2Reading,"Carregando...")
+        dpg.set_value(self.sensorStatus,"  ")
+        time.sleep(1)
         val = self.ser.getSensorData(self.ser)
 
         if val[0] <= 0 and val[1] <= 0:
-            dpg.configure_item("warning3",show=True)
+            #dpg.configure_item("warning3",show=True)
+            dpg.set_value(self.sensorStatus,"Sem resposta do testador. Verifique a conexão com o TBI.")
+            dpg.configure_item(self.sensorStatus,color=(255,0,0,255))
             return
         
-        dpg.set_value(item="TPS1Label",value="Pista 1: " + str(val[0]) + "V")
-        dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
+        #dpg.set_value(item="TPS1Label",value="Pista 1: " + str(val[0]) + "V")
+        #dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
+
+        dpg.set_value(self.pista1Reading,str(val[0]) + "V")
+        dpg.set_value(self.pista2Reading,str(val[1]) + "V")
 
         threading.Thread(target=self.updateConnStatus,daemon=True).start()
         print("thread called again")
         if(val[0] < 0.2 or val[1] < 0.2):
-            dpg.configure_item("warning4",show=True)
+            #dpg.configure_item("warning4",show=True)
+            dpg.set_value(self.sensorStatus,"Falha nos sensores de posição. Valores fora de escala.")
+            dpg.configure_item(self.sensorStatus,color=(255,0,0,255))
             return
         
 
@@ -329,7 +424,8 @@ class GUI():
        
     def addFonts(self):
         with dpg.font_registry():
-            self.inter1 = dpg.add_font(file="fonts/Inter_18pt-Light.ttf",size=18)
+            self.inter1 = dpg.add_font(file="fonts/Inter_18pt-Light.ttf",size=18,)
+            self.inter2 = dpg.add_font(file="fonts/Inter_24pt-Regular.ttf",size=24)
             dpg.bind_font(self.inter1) #global binding
              # dpg.bind_item_font(b2, second_font) # when item binding
 
@@ -373,5 +469,23 @@ class GUI():
             dpg.configure_item(self.portInput,items=self.ser.getPorts(self.ser))
             dpg.set_value(self.portInput,"")
 
-    def __exit__():
+    def loadDummydata(self):
+        with open('data/pista1.txt','r') as f1:
+            for line in f1:
+                dummyPlotyData.append(float(line.strip()))
+            
+        
+
+        with open('data/horizontal.txt','r') as f2:
+            for line in f2:
+                dummyPlotxData.append(float(line.strip()))
+        
+        f1.close()
+        f2.close()
+
+        print(dummyPlotyData)
+
+
+    def __exit__(self):
         dpg.destroy_context()
+        self.ser.close()
