@@ -156,7 +156,7 @@ class SERIAL():
         rawMsg.append(self.ser.readline())
         rawMsg.append(self.ser.readline())
 
-        time.sleep(0.5)
+        time.sleep(1)
         
         if len(rawMsg) == 0: return sensorValue
 
@@ -167,8 +167,8 @@ class SERIAL():
             return sensorValue #TODO: raise a warning to the interface
         
         if convMsg[0] == "END":
-            sensorValue[0] = float(convMsg[1])
-            sensorValue[1] = float(convMsg[2])
+            sensorValue[0] = float(convMsg[1]) * 2.0
+            sensorValue[1] = float(convMsg[2]) * 2.0
 
         self.busy = False
         return sensorValue

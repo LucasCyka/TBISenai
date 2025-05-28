@@ -1,4 +1,5 @@
 #include "ADS1X15.h"
+#include <Wire.h>
 
 //messsages id
 #define INVALID   128
@@ -49,6 +50,7 @@ void setup() {
 
   Serial.begin(230400);
   Serial.setTimeout(1000); 
+  Wire.begin(14,27); //TODO: remove on final product
   adcSetup(); 
 }
 
@@ -98,6 +100,7 @@ void loop() {
           int tps2 = ADS.readADC(1);  
 
           Serial.println(ADS.toVoltage(tps1),3);
+          delay(1);
           Serial.println(ADS.toVoltage(tps2),3);
         }
 
@@ -136,7 +139,7 @@ int getMessage(unsigned char *msg){
 }
 
 void adcSetup(){
-  Wire.begin(21,22);
+  //Wire.begin(21,22); TODO: add again on final product
   if (ADS.begin()){
 
     ADS.setDataRate(7);
