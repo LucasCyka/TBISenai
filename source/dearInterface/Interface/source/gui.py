@@ -408,7 +408,6 @@ class GUI():
             pista1File  = '/pista1.txt'
             pista2File  = '/pista2.txt'    
 
-
         with open(dir + horFile,'w') as file:
             for line in plotxData:
                 print("save")

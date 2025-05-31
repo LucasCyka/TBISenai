@@ -2,11 +2,14 @@
 #include <Wire.h>
 
 //messsages id
-#define INVALID   128
-#define CONNECT   129
-#define TESTCMD   130
-#define GETSENSOR 131
-#define CONTEST   132
+#define INVALID     128
+#define CONNECT     129
+#define TESTCMD     130
+#define GETSENSOR   131
+#define CONTEST     132
+#define MONITOR     133
+#define STOPMONITOR 134
+
 
 //pins
 #define MOTOR_PIN       2
@@ -26,6 +29,7 @@ bool connected         = false;
 bool adcConnected      = false;
 bool oncurveTest       = false;
 bool finisingTest      = false;
+bool onmonitorTest     = false;
 bool opening           = true;
 int  pwmInterval       = 0;
 int  maxDc             = 85; 
@@ -56,16 +60,15 @@ void setup() {
 
 void loop() {
 
-
     unsigned char msgBuffer[5];
     if(oncurveTest) {curveTest();}
+    else if(onmonitorTest){monitorTest();}
     else{
       if ((millis() - intervalConnCheck) >= 3000 &&  Serial.available() == 0){
         digitalWrite(CONNLED_PIN,LOW);
       }
     }
-    //TODO: if there was a connection, check if its on
-    
+
     //deal with messages from the mcu
     if(Serial.available()>0){
       if(Serial.readBytes(msgBuffer,4)){
@@ -83,7 +86,7 @@ void loop() {
         if (getMessage(msgBuffer) == TESTCMD){ 
           //TODO: ignore this, it can fry the motor
           //digitalWrite(MOTOR_PIN,!digitalRead(MOTOR_PIN));
-          Serial.println("END"); 
+          //Serial.println("END"); 
         }
 
         /**************** curve test *****************/
@@ -91,6 +94,7 @@ void loop() {
           Serial.println("END"); //tell the interface the command has been understood and will be executed
           oncurveTest = true;
           opening     = true;
+          //intervalConnCheck = 0;
         }
 
         /**************** get sensor data *****************/
@@ -102,6 +106,20 @@ void loop() {
           Serial.println(ADS.toVoltage(tps1),3);
           delay(1);
           Serial.println(ADS.toVoltage(tps2),3);
+        }
+
+        /**************** start monitor test *****************/
+        if (getMessage(msgBuffer) == MONITOR){ 
+          Serial.println("END"); //tell the interface the command has been understood and will be executed
+          onmonitorTest = true;
+
+        }
+
+        /**************** stop monitor test *****************/
+        if (getMessage(msgBuffer) == STOPMONITOR){ 
+          Serial.println("END"); //tell the interface the command has been understood and will be executed
+          onmonitorTest = false;
+
         }
 
       }
@@ -125,6 +143,12 @@ int getMessage(unsigned char *msg){
       case 0x0A:
         decodedMessage = GETSENSOR;
         break;
+      case 0x06:
+        decodedMessage = MONITOR;
+        break;
+      case 0x07:
+        decodedMessage = STOPMONITOR;
+        break;
       default:
         decodedMessage = INVALID;
         break;
@@ -139,7 +163,7 @@ int getMessage(unsigned char *msg){
 }
 
 void adcSetup(){
-  Wire.begin(21,22); TODO: add again on final product
+  Wire.begin(21,22);
   if (ADS.begin()){
 
     ADS.setDataRate(7);
@@ -160,6 +184,7 @@ void curveTest(){
   Serial.println(ADS.toVoltage(tps1),3);
   delay(1); //due to uart speed, can decrease it with higher baud
   Serial.println(ADS.toVoltage(tps2),3);
+  delay(1);
 
   if (finisingTest){
 
@@ -168,6 +193,7 @@ void curveTest(){
       oncurveTest  = false;
       finisingTest = false;
       opening     = true;
+      intervalConnCheck = millis();
       Serial.println("END");
     }
 
@@ -197,6 +223,12 @@ void curveTest(){
     }
 
   }
+
+}
+
+void monitorTest(){
+  Serial.println(0.000,3);
+  delay(1);
 
 }
 
