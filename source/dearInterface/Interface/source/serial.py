@@ -149,14 +149,14 @@ class SERIAL():
             self.busy = False
             return sensorValue
         
-        time.sleep(1)
+        time.sleep(0.2)
 
         rawMsg = []
         rawMsg.append(self.ser.readline())
         rawMsg.append(self.ser.readline())
         rawMsg.append(self.ser.readline())
 
-        time.sleep(1)
+        time.sleep(0.2)
         
         if len(rawMsg) == 0: return sensorValue
 
@@ -178,6 +178,35 @@ class SERIAL():
         try:
             self.ser.write(globals.START_BYTE.to_bytes(1,'big'))
             self.ser.write(0x04.to_bytes(1,'big'))
+            self.ser.write(0x00.to_bytes(1,'big'))
+            self.ser.write(globals.END_BYTE.to_bytes(1,'big'))
+        except:
+            self.busy = False
+            return False
+        
+        time.sleep(1)
+
+        rawMsg = []
+        rawMsg.append(self.ser.readline())
+
+        convMsg = self.convertMsg(self,rawMsg)
+        
+        if convMsg[0] == 'PowerError':
+            self.busy = False
+            return False #TODO: raise a warning to the interface
+
+        if convMsg[0] == 'END': 
+            self.ser.reset_input_buffer()
+            self.ser.reset_output_buffer()
+
+        self.busy = False
+        return True
+
+    def startMonitorTest(self):
+        self.busy = True
+        try:
+            self.ser.write(globals.START_BYTE.to_bytes(1,'big'))
+            self.ser.write(0x06.to_bytes(1,'big'))
             self.ser.write(0x00.to_bytes(1,'big'))
             self.ser.write(globals.END_BYTE.to_bytes(1,'big'))
         except:

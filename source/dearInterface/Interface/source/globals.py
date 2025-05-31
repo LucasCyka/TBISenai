@@ -3,7 +3,7 @@ import os
 
 #gui parameters
 SCREEN_WIDTH   = 1024
-SCREEN_HEIGHT  = 600
+SCREEN_HEIGHT  = 640
 
 #serial communication
 START_BYTE = 0x01

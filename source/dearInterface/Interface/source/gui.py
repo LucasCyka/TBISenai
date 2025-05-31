@@ -1,6 +1,7 @@
 import dearpygui.dearpygui as dpg
 import threading
 import time
+import numpy
 from source import globals
 
 images_data = {
@@ -57,8 +58,10 @@ plotyData2 = [5.0]
 timing     = 0
 
 #pre-measured data
-dummyPlotxData  = [0.0,1.0]
-dummyPlotyData  = [0.0,1,0]
+dummyPlotxData   = [0.0,1.0]
+dummyPlotyData   = [0.0,1,0]
+dumm2PlotxData   = [0.0,1.0]
+dummy2PlotyData  = [0.0,1,0]
 
 class GUI():
     ser                     = None
@@ -66,8 +69,11 @@ class GUI():
     inter2                  = None #inter font size 24
     commandQueue            = None
     onCurveTest             = False
+    onMonitorTest           = False
     connCheckElapsedFrames  = 0
     connCheckElapsedSeconds = 0
+    screenQueueDelay        = 0
+    screensQueue            = []
 
 
     #ui elements
@@ -125,6 +131,14 @@ class GUI():
 
                 pass
 
+            #starts screens queue
+            if len(self.screensQueue) >0:
+                if(self.screenQueueDelay >= 60):
+                    self.screenQueueDelay = 0
+                    self.screensQueue[0]()
+                    self.screensQueue.clear()
+                else: self.screenQueueDelay = self.screenQueueDelay+1
+
             if not self.onCurveTest and not self.ser.isBusy(self.ser) and self.ser.isConnected(self.ser):
                 #check from time to time if it still still connected, if not so update the ui
                 self.connCheckElapsedFrames = self.connCheckElapsedFrames +1
@@ -158,11 +172,18 @@ class GUI():
 
             if tps1 == 'END' or tps2 == 'END':
                 self.onCurveTest = False
+                print("stop the test!!!!")
                 threading.Thread(target=self.updateConnStatus,daemon=True).start()
                 continue 
 
             if tps1 == '' or tps2 == '': continue #avoid noise error
             
+            try: #check if its a number again
+                test1 = float(tps1)+1.0
+                test2 = float(tps2)+1.0
+            except:
+                continue
+
             interval = (time.perf_counter() - timing) * 1000
 
             plotxData.append(interval)
@@ -188,7 +209,7 @@ class GUI():
             self.startBtn   = dpg.add_button(label="INICIAR TESTE",pos=(150,110),callback=self.onStartBtn,width=110) 
             self.sensorBtn  = dpg.add_button(label="LER SENSORES",pos=(270,110),callback=self.onReadBtn,width=116) 
             self.saveBtn    = dpg.add_button(label="SALVAR GRÁFICO",pos=(395,110),callback=self.onSaveBtn,width=135) 
-            self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(540,110),width=110) 
+            self.monitorBtn = dpg.add_button(label="MONITORAR",pos=(540,110),width=110,callback=self.onMonitorBtn) 
             #self.Test2Btn   = dpg.add_button(label="ACELERAR",pos=(270,80),width=116) 
             #self.helpBtn    = dpg.add_button(label="MANUAL",pos=(395,80),width=135) 
 
@@ -221,12 +242,14 @@ class GUI():
                 dpg.add_line_series(dummyPlotxData,dummyPlotyData,parent="Exemplo1",label="esperado1",tag='dummy1')
 
             with dpg.plot(label="Defeito",width=210,height=210,pos=(790,380)):
-                dpg.add_plot_legend()
+                #dpg.add_plot_legend()
                 
                 dpg.add_plot_axis(dpg.mvXAxis,label="t(ms)",auto_fit=True,no_label=True,no_tick_labels=True)
                 dpg.set_axis_limits(dpg.last_item(), 0, 10000)
                 dpg.add_plot_axis(dpg.mvYAxis,label="ExemploTensao2",tag="Exemplo2",auto_fit=True,no_label=True,no_tick_labels=True)
                 dpg.set_axis_limits("Exemplo2",-0.1,6)
+
+                dpg.add_line_series(dumm2PlotxData,dummy2PlotyData,parent="Exemplo2",label="defeito2",tag="dummy2")
 
         with dpg.window(tag="SensorReadings",label="Sensores de Posição",show=False,width=600,height=300,modal=True,pos=(globals.SCREEN_WIDTH/2-300,globals.SCREEN_HEIGHT/2-150)):
             self.sensorStatus  = dpg.add_text("  ",color=(255,255,0,255))
@@ -241,7 +264,7 @@ class GUI():
             dpg.bind_item_font(self.pista2Reading,self.inter2)
             dpg.add_text("   ")
             dpg.add_text("Ford Ka 1.5/1.6",pos=(490,150))
-            self.updateSensorBtn = dpg.add_button(label="ATUALIZAR",pos=(475,90),height=50)
+            self.updateSensorBtn = dpg.add_button(label="ATUALIZAR",pos=(475,90),height=50,callback=self.onReadBtn)
             dpg.bind_item_font(self.updateSensorBtn,self.inter2)
             
             with dpg.table(header_row=True,tag="SensorTable1",borders_outerH=True):
@@ -265,8 +288,8 @@ class GUI():
 
                 with dpg.table_row():
                     dpg.add_text("Abertura: ")
-                    dpg.add_text("0,40 V")
-                    dpg.add_text("4,00 V")
+                    dpg.add_text("0,80V V")
+                    dpg.add_text("4,2 V")
             
             #dpg.highlight_table_cell("SensorTable1",0,0,[0,255,0,50])
             #dpg.highlight_table_cell("SensorTable1",0,1,[0,255,0,50])
@@ -291,9 +314,34 @@ class GUI():
             dpg.add_text("Falha nos sensores. Verifique a conexão com o TBI.",pos=(25,20))
             dpg.add_button(label="OK",pos=(170,60),width=50,callback=lambda: dpg.configure_item("warning4",show=False))
 
+        with dpg.window(label="Warning5",modal=True,show=False,tag="warning5",no_title_bar=True,width= 400,height=100,pos=(globals.SCREEN_WIDTH/2-200,globals.SCREEN_HEIGHT/2-50),no_resize=True):
+            dpg.add_text("Salvo na pasta local de gráficos!",pos=(80,20))
+            dpg.add_button(label="OK",pos=(170,60),width=50,callback=lambda: dpg.configure_item("warning5",show=False))
+
+
         #file dialog popups
         dpg.add_file_dialog(directory_selector=True,show=False,callback=self.saveGraph,tag="graph_dialog",
-            width=600,height=300,)
+            width=600,height=300)
+
+    def onMonitorBtn(self):
+        if self.onCurveTest: return
+        if self.ser.isBusy(self.ser): 
+            self.commandQueue = self.onStartBtn
+            return
+
+        if not self.ser.isConnected(self.ser):
+            dpg.configure_item("warning2",show=True)
+            return
+        
+        if dpg.get_value(self.modelInput) == '':
+            dpg.configure_item("warning1",show=True)
+            time.sleep(0.1)
+            self.commandQueue = None
+            threading.Thread(target=self.updateConnStatus,daemon=True).start()
+            return
+        
+        if self.onMonitorTest:
+            pass
 
     def onStartBtn(self):
         if self.onCurveTest: return
@@ -350,7 +398,33 @@ class GUI():
             dpg.configure_item("StatusLabel",color=(255,0,0,255))
 
     def onSaveBtn(self):
-        dpg.show_item("graph_dialog")
+        dir         = "graficos"
+        horFile     = '\horizontal.txt'
+        pista1File  = '\pista1.txt'
+        pista2File  = '\pista2.txt'
+
+        if globals.isLinux:
+            horFile     = '/horizontal.txt'
+            pista1File  = '/pista1.txt'
+            pista2File  = '/pista2.txt'    
+
+
+        with open(dir + horFile,'w') as file:
+            for line in plotxData:
+                print("save")
+                file.write(f"{line}\n")
+
+        with open(dir + pista1File,'w') as file:
+            for line in plotyData1:
+                file.write(f"{line}\n")
+
+        with open(dir + pista2File,'w') as file:
+            for line in plotyData2:
+                file.write(f"{line}\n")
+
+        #dpg.show_item("graph_dialog") too unstable on windows 11. Library issue
+
+        dpg.configure_item("warning5",show=True)
 
     def onReadBtn(self):
         if self.onCurveTest: return
@@ -369,17 +443,26 @@ class GUI():
             self.commandQueue = None
             threading.Thread(target=self.updateConnStatus,daemon=True).start()
             return
-
         self.commandQueue = None
-
-        #now update things on popup
+        
         dpg.configure_item("SensorReadings",show=True)
         dpg.configure_item(self.pista1Reading,color=(255,255,0,255))
         dpg.configure_item(self.pista2Reading,color=(255,255,0,255))
         dpg.set_value(self.pista1Reading,"Carregando...")
         dpg.set_value(self.pista2Reading,"Carregando...")
         dpg.set_value(self.sensorStatus,"  ")
-        time.sleep(1)
+
+        self.addScreenToQueue(self.startSensorScreen)
+
+        """
+        #now update things on popup
+        
+        dpg.configure_item(self.pista1Reading,color=(255,255,0,255))
+        dpg.configure_item(self.pista2Reading,color=(255,255,0,255))
+        dpg.set_value(self.pista1Reading,"Carregando...")
+        dpg.set_value(self.pista2Reading,"Carregando...")
+        dpg.set_value(self.sensorStatus,"  ")
+
         val = self.ser.getSensorData(self.ser)
 
         if val[0] <= 0 and val[1] <= 0:
@@ -401,20 +484,49 @@ class GUI():
             dpg.set_value(self.sensorStatus,"Falha nos sensores de posição. Valores fora de escala.")
             dpg.configure_item(self.sensorStatus,color=(255,0,0,255))
             return
+        """
+
+    def addScreenToQueue(self,scr):
+        self.screenQueueDelay = 0
+        self.screensQueue.append(scr)
+
+    def startSensorScreen(self):
+        val = self.ser.getSensorData(self.ser)
+        print("got answer???")
+        if val[0] <= 0 and val[1] <= 0:
+            #dpg.configure_item("warning3",show=True)
+            dpg.set_value(self.sensorStatus,"Sem resposta do testador. Verifique a conexão com o TBI.")
+            dpg.configure_item(self.sensorStatus,color=(255,0,0,255))
+            return
+        
+        #dpg.set_value(item="TPS1Label",value="Pista 1: " + str(val[0]) + "V")
+        #dpg.set_value(item="TPS2Label",value="Pista 2: " + str(val[1]) + "V")
+
+        dpg.set_value(self.pista1Reading,str(val[0]) + "V")
+        dpg.set_value(self.pista2Reading,str(val[1]) + "V")
+
+        threading.Thread(target=self.updateConnStatus,daemon=True).start()
+        print("thread called again")
+        if(val[0] < 0.2 or val[1] < 0.2):
+            #dpg.configure_item("warning4",show=True)
+            dpg.set_value(self.sensorStatus,"Falha nos sensores de posição. Valores fora de escala.")
+            dpg.configure_item(self.sensorStatus,color=(255,0,0,255))
+            return
         
 
-    def saveGraph(self,sender,app_data):
+    def saveGraph(self,sender,app_data):#TOO UNSTABLE ON WINDOWS 11
         dir = app_data['file_path_name']
+        
 
-        with open(dir + '/horizontal.txt','w') as file:
+        with open(dir + '\\horizontal.txt','w') as file:
             for line in plotxData:
                 file.write(f"{line}\n")
 
-        with open(dir + '/pista1.txt','w') as file:
+        with open(dir + '\\pista1.txt','w') as file:
             for line in plotyData1:
                 file.write(f"{line}\n")
 
-        with open(dir + '/pista2.txt','w') as file:
+        with open(dir + '\\pista2.txt','w') as file:
             for line in plotyData2:
                 file.write(f"{line}\n")
 
@@ -428,7 +540,6 @@ class GUI():
             self.inter2 = dpg.add_font(file="fonts/Inter_24pt-Regular.ttf",size=24)
             dpg.bind_font(self.inter1) #global binding
              # dpg.bind_item_font(b2, second_font) # when item binding
-
 
     def addImages(self):
         
@@ -470,20 +581,32 @@ class GUI():
             dpg.set_value(self.portInput,"")
 
     def loadDummydata(self):
-        with open('data/pista1.txt','r') as f1:
+        pista1Good     = 'data/pista1.txt'
+        HorizontalGood = 'data/horizontal.txt'
+        pista1Bad      = 'data/PistaDefeito.txt'
+        horizontalBad  = 'data/HorizontalDefeito.txt'
+
+
+        with open(pista1Good,'r') as f1:
             for line in f1:
                 dummyPlotyData.append(float(line.strip()))
             
-        
-
-        with open('data/horizontal.txt','r') as f2:
+        with open(HorizontalGood,'r') as f2:
             for line in f2:
                 dummyPlotxData.append(float(line.strip()))
+
+        with open(pista1Bad,'r') as f3:
+            for line in f3:
+                dummy2PlotyData.append(float(line.strip()))
+            
+        with open(horizontalBad,'r') as f4:
+            for line in f4:
+                dumm2PlotxData.append(float(line.strip()))
         
         f1.close()
         f2.close()
-
-        print(dummyPlotyData)
+        f3.close()
+        f4.close()
 
 
     def __exit__(self):
